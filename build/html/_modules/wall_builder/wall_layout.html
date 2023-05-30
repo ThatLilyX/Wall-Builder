@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wall_builder.wall_layout &mdash; wall_builder 0.1.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            wall_builder
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">wall_builder</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wall_builder.wall_layout</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wall_builder.wall_layout</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module contains algorithms for generating the wall layout.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
+
+<span class="kn">from</span> <span class="nn">wall_builder.row_layout</span> <span class="kn">import</span> <span class="n">row_layouts_dp</span>
+<span class="kn">from</span> <span class="nn">wall_builder.neighbor</span> <span class="kn">import</span> <span class="n">build_neighbors</span><span class="p">,</span> <span class="n">no_common_edge</span>
+
+<span class="kn">from</span> <span class="nn">wall_builder.utils.profiler</span> <span class="kn">import</span> <span class="n">profile</span>
+
+
+<div class="viewcode-block" id="num_wall_layouts"><a class="viewcode-back" href="../../index.html#wall_builder.wall_layout.num_wall_layouts">[docs]</a><span class="k">def</span> <span class="nf">num_wall_layouts</span><span class="p">(</span>
+    <span class="n">brick_set</span><span class="p">:</span> <span class="nb">set</span><span class="p">,</span> <span class="n">wall_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">wall_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="n">no_common_edge</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the number of all possible wall layouts given a brick set, wall dimensions and</span>
+<span class="sd">    given eligibility predicate of neighboring rows.</span>
+
+<span class="sd">    Assumptions:</span>
+<span class="sd">        - there&#39;re unlimited supply of bricks of each size</span>
+<span class="sd">        - only use bricks horizontally</span>
+
+<span class="sd">    The algorithm is broken down into three steps:</span>
+<span class="sd">        1. Find all possible row layouts using Dynamic Programming (see :py:func:`~wall_builder.row_layout.row_layouts_dp`)</span>
+<span class="sd">        2. Find eligible neighbors for each row layout according to the given predicate  (see :py:func:`~wall_builder.neighbor.build_neighbors`)</span>
+<span class="sd">        3. Find the number of all possible wall layouts using Dynamic Programming  (see :py:func:`~wall_builder.wall_layout.num_wall_layouts_helper`)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        brick_set (set): available bricks; each element is the length of a brick</span>
+<span class="sd">        wall_length (int): length of the wall</span>
+<span class="sd">        wall_height (int): height of the wall</span>
+<span class="sd">        predicate (function): a function that takes in two row layouts&#39; index and other keyword arguments,</span>
+<span class="sd">          and returns True if they are eligible neighbors</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        int: the number of all possible wall layouts</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Step 1: find all possible row layouts</span>
+    <span class="n">row_layouts</span> <span class="o">=</span> <span class="n">row_layouts_dp</span><span class="p">(</span><span class="n">brick_set</span><span class="p">,</span> <span class="n">wall_length</span><span class="p">)</span>
+
+    <span class="c1"># Step 2: find eligible neighbors for each row layout</span>
+    <span class="n">neighbors</span> <span class="o">=</span> <span class="n">build_neighbors</span><span class="p">(</span><span class="n">row_layouts</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="n">predicate</span><span class="p">)</span>
+
+    <span class="c1"># Step 3: find the number of all possible wall layouts</span>
+    <span class="k">return</span> <span class="n">num_wall_layouts_helper</span><span class="p">(</span><span class="n">neighbors</span><span class="p">,</span> <span class="n">wall_height</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="num_wall_layouts_helper"><a class="viewcode-back" href="../../api/wall_builder.wall_layout.html#wall_builder.wall_layout.num_wall_layouts_helper">[docs]</a><span class="k">def</span> <span class="nf">num_wall_layouts_helper</span><span class="p">(</span><span class="n">neighbors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">wall_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the number of all possible wall layouts using Dynamic Programming.</span>
+
+<span class="sd">    The time complexity is O(NK&#39;), where N is the wall height and K&#39; is the average number of possible neighbors, which is proportional to the number of row layouts, K.</span>
+<span class="sd">    The memory complexity is O(K&quot;), where K&quot; is the length of ``neighbors``, which is proprotional to the number of row layouts, K.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        neighbors (Dict[int, List[int]]): a dictionary of row layouts (index) mapped to their eligible neighbors (index).</span>
+<span class="sd">            Eligibility is defined as the neighboring two rows don&#39;t share an edge.</span>
+<span class="sd">        wall_height (int): height of the wall</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        int: the number of all possible wall layouts</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Step 1: initialize the DP cache;</span>
+    <span class="c1"># normally a DP table would be used, but in this case we only need the states for the current and previous layouts</span>
+    <span class="c1"># use a dictionary to save space, esp. when not all row_layouts are in neighbors dictionary</span>
+    <span class="n">prev_dp_cache</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="p">:</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">neighbors</span><span class="p">}</span>
+
+    <span class="c1"># Step 2: fill in the DP cache</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">wall_height</span><span class="p">):</span>
+        <span class="n">curr_dp_cache</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="p">:</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">neighbors</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">n_list</span> <span class="ow">in</span> <span class="n">neighbors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">neighbor</span> <span class="ow">in</span> <span class="n">n_list</span><span class="p">:</span>
+                <span class="n">curr_dp_cache</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">prev_dp_cache</span><span class="p">[</span><span class="n">neighbor</span><span class="p">]</span>
+        <span class="n">prev_dp_cache</span> <span class="o">=</span> <span class="n">curr_dp_cache</span>
+
+    <span class="c1"># Step 3: return the sum of the last current DP cache</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">curr_dp_cache</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;num_wall_layouts&quot;</span><span class="p">,</span> <span class="s2">&quot;num_wall_layouts_helper&quot;</span><span class="p">]</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="n">num_wall_layouts</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span> <span class="o">==</span> <span class="mi">16879522589829476</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Lily Xiong.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
